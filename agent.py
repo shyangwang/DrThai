@@ -47,6 +47,7 @@ def get_memory(session_id):
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain import hub
+from langchain_core.prompts import PromptTemplate
 
 agent_prompt = PromptTemplate.from_template("""
 You are a medical expert providing information about Pharmacogenomics.
