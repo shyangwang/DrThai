@@ -17,6 +17,7 @@ medical_chat = chat_prompt | llm | StrOutputParser()
 # Create a set of tools
 from langchain.tools import Tool
 from tools.cypher import cypher_qa
+from tools.vector import get_pharmacogenomics_answer
 
 tools = [
     Tool.from_function(
