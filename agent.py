@@ -90,13 +90,12 @@ New input: {input}
 {agent_scratchpad}
 """)
 
-
 agent = create_react_agent(llm, tools, agent_prompt)
 agent_executor = AgentExecutor(
     agent=agent,
     tools=tools,
     verbose=True
-    )
+)
 
 chat_agent = RunnableWithMessageHistory(
     agent_executor,
@@ -106,7 +105,6 @@ chat_agent = RunnableWithMessageHistory(
 )
 
 # Create a handler to call the agent
-
 from utils import get_session_id
 
 def generate_response(user_input):
@@ -114,9 +112,8 @@ def generate_response(user_input):
     Create a handler that calls the Conversational agent
     and returns a response to be rendered in the UI
     """
-
     response = chat_agent.invoke(
         {"input": user_input},
-        {"configurable": {"session_id": get_session_id()}},)
-
+        {"configurable": {"session_id": get_session_id()}},
+    )
     return response['output']
