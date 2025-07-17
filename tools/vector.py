@@ -1,24 +1,29 @@
-import streamlit as st
+from functools import lru_cache
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from graph import graph  # 你的 Neo4j 連線設定
-
 from langchain_community.vectorstores import Neo4jVector
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_retrieval_chain
 from langchain_core.prompts import ChatPromptTemplate
 
-# ✅ 1. 建立 OpenAI 向量模型
-embedding = OpenAIEmbeddings(model="text-embedding-3-small")  # 或 "text-embedding-ada-002"
+from graph import graph  # 仍保留你的 graph 連線
 
-# ✅ 2. 建立 Neo4j Vector Index
-neo4jvector = Neo4jVector.from_existing_index(
-    embedding=embedding,
-    graph=graph,
-    index_name="entity_vector",
-    node_label="PharmConcept",
-    text_node_property="description",
-    embedding_node_property="descriptionEmbedding",
-    retrieval_query="""
+# ✅ 延遲初始化 vector store（避免在 import 階段就觸發 embedding API）
+@lru_cache()
+def get_vectorstore():
+    embedding = OpenAIEmbeddings(
+        model="text-embedding-3-small",
+        request_timeout=30,
+        max_retries=5
+    )
+
+    return Neo4jVector.from_existing_index(
+        embedding=embedding,
+        graph=graph,
+        index_name="entity_vector",
+        node_label="PharmConcept",
+        text_node_property="description",
+        embedding_node_property="descriptionEmbedding",
+        retrieval_query="""
 RETURN
     node.description AS text,
     score,
@@ -27,74 +32,42 @@ RETURN
         type: node.type,
         relatedGenes: [(g:Gene)-[:RELATED_TO]->(node) | g.name],
         relatedDrugs: [(d:Drug)-[:AFFECTS]->(node) | d.name],
-        relatedConditions: [(c:MedicalCondition)-[:TREATED_BY|ASSOCIATED_WITH]->(node) | c.name],
-        guidelines: [(g:Guideline)-[:RECOMMENDS]->(node) | g.name],
-        source: node.source,
-        source_url: 'https://yourdomain.com/source/' + toString(node.source)
+        relatedConditions: [(c:Condition)-[:TREATED_BY|ASSOCIATED_WITH]->(node) | c.name],
+        guideline: [(g:Guideline)-[:RECOMMENDS]->(node) | g.name],
+        source: node.source
     } AS metadata
 """
-)
+    )
 
-# ✅ 3. 建立 Chat 模型
-llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+# ✅ Chat model 延遲初始化（可與 retriever 多次共用）
+@lru_cache()
+def get_llm():
+    return ChatOpenAI(
+        model="gpt-3.5-turbo",
+        temperature=0,
+        request_timeout=60,
+        max_retries=5
+    )
 
-# ✅ 4. 建立 QA Chain
-retriever = neo4jvector.as_retriever()
-
-instructions = (
-    "You are a pharmacogenomics assistant. Use the provided context to answer the question. "
-    "If the answer is not in the context, say 'I don't know'. "
-    "Context: {context}"
-)
-
-prompt = ChatPromptTemplate.from_messages([
-    ("system", instructions),
-    ("human", "{input}")
-])
-
-question_answer_chain = create_stuff_documents_chain(llm, prompt)
-pharm_retriever = create_retrieval_chain(retriever, question_answer_chain)
-
-# ✅ 5. 回答查詢函式
+# ✅ 查詢回答函式
 def get_pharmacogenomics_answer(input):
+    vectorstore = get_vectorstore()
+    llm = get_llm()
+
+    retriever = vectorstore.as_retriever()
+
+    instructions = (
+        "You are a pharmacogenomics assistant. Use the provided context to answer the question. "
+        "If the answer is not in the context, say 'I don't know'. "
+        "Context: {context}"
+    )
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", instructions),
+        ("human", "{input}")
+    ])
+
+    question_answer_chain = create_stuff_documents_chain(llm, prompt)
+    pharm_retriever = create_retrieval_chain(retriever, question_answer_chain)
+
     return pharm_retriever.invoke({"input": input})
-
-# # ✅ 6. Streamlit 介面
-# st.title("💊 Pharmacogenomics Assistant")
-
-# if "messages" not in st.session_state:
-#     st.session_state.messages = []
-
-# for msg in st.session_state.messages:
-#     with st.chat_message(msg["role"]):
-#         st.markdown(msg["content"])
-
-# if prompt := st.chat_input("請輸入你的問題..."):
-#     st.session_state.messages.append({"role": "user", "content": prompt})
-#     with st.chat_message("user"):
-#         st.markdown(prompt)
-
-#     with st.chat_message("assistant"):
-#         try:
-#             response = get_pharmacogenomics_answer(prompt)
-#             answer = response.get("answer", "I'm not sure.")
-#             st.markdown(answer)
-
-#             # ✅ 顯示引用來源
-#             docs = response.get("context", [])
-#             if docs:
-#                 st.markdown("---")
-#                 st.markdown("**References:**")
-#                 for i, doc in enumerate(docs):
-#                     meta = doc.metadata
-#                     name = meta.get("name", f"Source {i+1}")
-#                     url = meta.get("source_url")
-#                     if url:
-#                         st.markdown(f"- [{name}]({url})", unsafe_allow_html=True)
-#                     else:
-#                         st.markdown(f"- {name}")
-
-#             st.session_state.messages.append({"role": "assistant", "content": answer})
-
-#         except Exception as e:
-#             st.error(f"❌ 發生錯誤：{str(e)}")
