@@ -6,4 +6,4 @@ neo4j>=5.27.0
 streamlit>=1.35.0
 langchainhub>=0.1
 tenacity!=8.4.0
-git+https://github.com/langchain-ai/langchain-neo4j
+git+https://github.com/rlawjddns/langchain-neo4j-pypi.git
