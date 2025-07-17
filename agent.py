@@ -114,7 +114,6 @@ def generate_response(user_input):
     )
 
     return {
-        "answer": response["output"],
-        "context": response.get("context", []),  # Optional: 回傳來源
-    }
-
+    "answer": response["output"],
+    "context": response.get("context", [{"source": "N/A"}]),  # 添加 dummy source if missing
+}
