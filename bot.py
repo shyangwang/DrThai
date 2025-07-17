@@ -17,8 +17,8 @@ def handle_submit(message):
         # ✅ 呼叫 agent 並接收完整回應（包含 answer 與 context）
         response = generate_response(message)
 
-        # 回傳格式預期為 dict：{ "answer": ..., "context": [...] }
-        answer = response
+        # ⛳ 取出答案與引用資料
+        answer = response.get("answer", "I'm not sure.")
         context_docs = response.get("context", [])
 
         # ✅ 顯示主回覆
@@ -28,10 +28,12 @@ def handle_submit(message):
         if context_docs:
             references = "**References:**\n"
             for i, doc in enumerate(context_docs):
-                meta = doc.metadata
+                # 這裡假設 doc 是 Document 物件（或 dict 有 metadata 欄位）
+                meta = getattr(doc, "metadata", doc.get("metadata", {}))
                 name = meta.get("name", f"Source {i+1}")
-                url = meta.get("source_url")
-                if url:
+                url = meta.get("source") or meta.get("source_url")
+
+                if url and url.startswith("http"):
                     references += f"- [{name}]({url})\n"
                 else:
                     references += f"- {name}\n"
