@@ -1,20 +1,23 @@
 import streamlit as st
-from llm import llm, embeddings
-from graph import graph
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from graph import graph  # 仍保留你的 graph 連線
 
-from langchain_neo4j import Neo4jVector
+from langchain_community.vectorstores import Neo4jVector
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_retrieval_chain
 from langchain_core.prompts import ChatPromptTemplate
 
-# Step 1: 定義向量索引參數
+# ✅ 改用 OpenAI 的 Embedding 模型
+embedding = OpenAIEmbeddings(model="text-embedding-3-small")  # 也可用 "text-embedding-ada-002"
+
+# ✅ 建立 Neo4j 向量索引連結（可共用 HuggingFace/ OpenAI 的 embedding）
 neo4jvector = Neo4jVector.from_existing_index(
-    embeddings=embeddings,
+    embedding=embedding,
     graph=graph,
-    index_name="pharmPGxIndex",                  # 🔁 替換為你建好的 pharmacogenomics index 名稱
-    node_label="PharmConcept",                   # 🔁 節點類型，可統一命名或用多類型
-    text_node_property="description",            # 🔁 存放文本描述欄位
-    embedding_node_property="descriptionEmbedding",  # 🔁 嵌入向量欄位
+    index_name="entity_vector",
+    node_label="PharmConcept",
+    text_node_property="description",
+    embedding_node_property="descriptionEmbedding",
     retrieval_query="""
 RETURN
     node.description AS text,
@@ -31,7 +34,10 @@ RETURN
 """
 )
 
-# Step 2: 建立 retriever 與 QA chain
+# ✅ 改為使用 OpenAI Chat 模型作為 LLM
+llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+
+# Retriever 與 QA Chain
 retriever = neo4jvector.as_retriever()
 
 instructions = (
@@ -48,6 +54,6 @@ prompt = ChatPromptTemplate.from_messages([
 question_answer_chain = create_stuff_documents_chain(llm, prompt)
 pharm_retriever = create_retrieval_chain(retriever, question_answer_chain)
 
-# Step 3: 提供查詢介面
+# 查詢函式
 def get_pharmacogenomics_answer(input):
     return pharm_retriever.invoke({"input": input})
