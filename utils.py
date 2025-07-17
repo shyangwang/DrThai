@@ -1,10 +1,9 @@
 import streamlit as st
-from streamlit.runtime.scriptrunner.script_run_context import get_script_run_ctx
 
-def write_message(role, content, save = True):
+def write_message(role, content, save=True):
     """
     This is a helper function that saves a message to the
-     session state and then writes a message to the UI
+    session state and then writes a message to the UI
     """
     # Append to session state
     if save:
@@ -15,4 +14,12 @@ def write_message(role, content, save = True):
         st.markdown(content)
 
 def get_session_id():
-    return get_script_run_ctx().session_id
+    try:
+        from streamlit.runtime.scriptrunner.script_run_context import get_script_run_ctx
+        ctx = get_script_run_ctx()
+        if ctx:
+            return ctx.session_id
+    except Exception:
+        pass
+    # fallback
+    return "unknown-session"
