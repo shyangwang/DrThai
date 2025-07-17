@@ -18,7 +18,7 @@ def handle_submit(message):
         response = generate_response(message)
 
         # 回傳格式預期為 dict：{ "answer": ..., "context": [...] }
-        answer = response.get("answer", "I'm not sure.")
+        answer = response
         context_docs = response.get("context", [])
 
         # ✅ 顯示主回覆
