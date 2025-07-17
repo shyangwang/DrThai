@@ -24,11 +24,11 @@ tools = [
         description="For general medical chat not covered by other tools",
         func=medical_chat.invoke,
     ), 
-    # Tool.from_function(
-    #     name="Movie Plot Search",  
-    #     description="For when you need to find information about movies based on a plot",
-    #     func=get_movie_plot, 
-    # ),
+    Tool.from_function(
+        name="Pharmacogenomics Q&A",
+        description="Use this tool to answer questions about pharmacogenomics, drug-gene interactions, and related conditions based on knowledge graph search.",
+        func=get_pharmacogenomics_answer,
+    ),
     Tool.from_function(
         name="Medical information",
         description="Provide information about medical questions using Cypher",
