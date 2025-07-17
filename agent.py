@@ -108,12 +108,13 @@ chat_agent = RunnableWithMessageHistory(
 from utils import get_session_id
 
 def generate_response(user_input):
-    """
-    Create a handler that calls the Conversational agent
-    and returns a response to be rendered in the UI
-    """
     response = chat_agent.invoke(
         {"input": user_input},
         {"configurable": {"session_id": get_session_id()}},
     )
-    return response['output']
+
+    return {
+        "answer": response["output"],
+        "context": response.get("context", []),  # Optional: 回傳來源
+    }
+
