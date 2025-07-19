@@ -33,7 +33,7 @@ def handle_submit(message):
             if context_docs:
                 references = "**References:**\n"
                 for i, doc in enumerate(context_docs):
-                    meta = doc.metadata
+                    meta = doc.get("metadata", {})
                     name = meta.get("name", f"Source {i+1}")
                     url = meta.get("source_url")
                     if url:
